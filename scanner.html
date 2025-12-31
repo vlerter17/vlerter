@@ -29,6 +29,29 @@
         #qr-reader {
             width: 100%;
             margin: 20px 0;
+            position: relative;
+        }
+        .camera-controls {
+            margin: 15px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+        .camera-select {
+            width: 100%;
+            max-width: 300px;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            background: white;
+        }
+        .camera-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
         }
         button {
             background: #007bff;
@@ -39,9 +62,36 @@
             border-radius: 5px;
             cursor: pointer;
             font-size: 16px;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         button:hover {
             background: #0056b3;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        button.secondary {
+            background: #6c757d;
+        }
+        button.secondary:hover {
+            background: #545b62;
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.success:hover {
+            background: #1e7e34;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
         }
         .result {
             margin-top: 20px;
@@ -59,14 +109,20 @@
             color: #721c24;
             display: block;
         }
-        .hidden {
-            display: none;
-        }
         .info {
+            background: #e7f3ff;
+            color: #004085;
+            display: block;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .info-box {
             margin: 10px 0;
             padding: 10px;
             background: #e7f3ff;
             border-radius: 5px;
+            text-align: left;
         }
         #manualInput {
             margin-top: 20px;
@@ -79,51 +135,26 @@
             border-radius: 5px;
             font-size: 16px;
         }
-        .status-badge {
-            display: inline-block;
-            padding: 8px 15px;
-            margin: 10px 0;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 18px;
-        }
-        .status-allowed {
-            background: #28a745;
-            color: white;
-        }
-        .status-denied {
-            background: #dc3545;
-            color: white;
-        }
-        .actions {
+        #ticketInfo {
             margin-top: 20px;
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-        }
-        .actions button {
-            min-width: 120px;
-        }
-        #scanAgainBtn {
-            background: #17a2b8;
-        }
-        #scanAgainBtn:hover {
-            background: #138496;
+            text-align: left;
         }
         .ticket-details {
-            text-align: left;
-            margin-top: 15px;
-            padding: 15px;
             background: #f8f9fa;
+            padding: 15px;
             border-radius: 5px;
-        }
-        .ticket-details div {
-            margin: 5px 0;
-        }
-        .timestamp {
-            color: #666;
-            font-size: 14px;
             margin-top: 10px;
+        }
+        .status-active {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .status-used {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .icon {
+            font-size: 1.2em;
         }
     </style>
 </head>
@@ -134,34 +165,57 @@
         
         <div id="qr-reader"></div>
         
-        <div>
-            <button id="startBtn">▶️ Начать сканирование</button>
-            <button id="stopBtn" class="hidden">⏹️ Остановить</button>
-            <button id="manualBtn">📝 Ручной ввод</button>
+        <div class="camera-controls">
+            <select id="cameraSelect" class="camera-select hidden">
+                <option value="">Выберите камеру...</option>
+            </select>
+            
+            <div class="camera-actions">
+                <button id="startBtn">
+                    <span class="icon">▶️</span>
+                    <span>Начать сканирование</span>
+                </button>
+                <button id="stopBtn" class="hidden">
+                    <span class="icon">⏹️</span>
+                    <span>Остановить</span>
+                </button>
+                <button id="switchCameraBtn" class="secondary hidden">
+                    <span class="icon">🔄</span>
+                    <span>Сменить камеру</span>
+                </button>
+                <button id="manualBtn" class="secondary">
+                    <span class="icon">📝</span>
+                    <span>Ручной ввод</span>
+                </button>
+            </div>
         </div>
         
         <div id="manualInput" class="hidden">
             <input type="text" id="ticketId" placeholder="Введите VER-... или TICKET-...">
-            <div>
-                <button id="checkBtn">🔍 Проверить</button>
-                <button id="cancelBtn">❌ Отмена</button>
+            <div class="camera-actions" style="margin-top: 10px;">
+                <button id="checkBtn" class="success">
+                    <span class="icon">🔍</span>
+                    <span>Проверить</span>
+                </button>
+                <button id="cancelBtn" class="danger">
+                    <span class="icon">❌</span>
+                    <span>Отмена</span>
+                </button>
             </div>
         </div>
         
         <div id="result" class="result"></div>
         
         <div id="ticketInfo" class="hidden">
-            <div class="info">
-                <strong>Результат проверки:</strong>
-                <div id="statusBadge" class="status-badge"></div>
+            <div class="info-box">
+                <strong>Информация о билете:</strong>
                 <div id="infoContent"></div>
-                <div class="timestamp" id="timestamp"></div>
-                
-                <div class="actions">
-                    <button id="scanAgainBtn">🔄 Сканировать еще</button>
-                    <button id="closeBtn" class="hidden">✅ Закрыть</button>
-                </div>
             </div>
+        </div>
+        
+        <div id="cameraInfo" class="info-box hidden">
+            <strong>Информация о камере:</strong>
+            <div id="cameraInfoContent"></div>
         </div>
     </div>
 
@@ -169,84 +223,178 @@
         // Инициализация Telegram Web App
         const tg = window.Telegram.WebApp;
         tg.expand();
-        tg.BackButton.hide(); // Скрываем кнопку назад
         
         let html5QrCode = null;
         let isScanning = false;
+        let currentCameraId = null;
+        let availableCameras = [];
+        let currentCameraIndex = 0;
         
         // Конфиг сканера
         const config = {
             fps: 10,
             qrbox: { width: 250, height: 250 },
             supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-            showTorchButtonIfSupported: true
+            showTorchButtonIfSupported: true,
+            rememberLastUsedCamera: true
         };
         
         // Элементы DOM
         const elements = {
             startBtn: document.getElementById('startBtn'),
             stopBtn: document.getElementById('stopBtn'),
+            switchCameraBtn: document.getElementById('switchCameraBtn'),
             manualBtn: document.getElementById('manualBtn'),
             manualInput: document.getElementById('manualInput'),
             checkBtn: document.getElementById('checkBtn'),
             cancelBtn: document.getElementById('cancelBtn'),
+            cameraSelect: document.getElementById('cameraSelect'),
             resultDiv: document.getElementById('result'),
             ticketInfo: document.getElementById('ticketInfo'),
             infoContent: document.getElementById('infoContent'),
             ticketIdInput: document.getElementById('ticketId'),
-            statusBadge: document.getElementById('statusBadge'),
-            scanAgainBtn: document.getElementById('scanAgainBtn'),
-            closeBtn: document.getElementById('closeBtn'),
-            timestamp: document.getElementById('timestamp')
+            cameraInfo: document.getElementById('cameraInfo'),
+            cameraInfoContent: document.getElementById('cameraInfoContent')
         };
         
         // Инициализация
-        function init() {
+        async function init() {
             html5QrCode = new Html5Qrcode("qr-reader");
             
-            // Обработчики событий
+            // Получаем список камер
+            await getCameras();
+            
+            // Настройка обработчиков событий
             setupEventListeners();
             
-            // Начинаем сканирование автоматически
-            setTimeout(() => {
-                startScanner();
-            }, 1000);
+            // Показываем информацию о доступных камерах
+            updateCameraInfo();
+            
+            // Автозапуск камеры при наличии
+            if (availableCameras.length > 0) {
+                setTimeout(() => {
+                    startWithFirstCamera();
+                }, 500);
+            }
+        }
+        
+        // Получить список доступных камер
+        async function getCameras() {
+            try {
+                availableCameras = await Html5Qrcode.getCameras();
+                console.log("Найдено камер:", availableCameras.length);
+                
+                // Заполняем выпадающий список
+                populateCameraSelect();
+                
+                if (availableCameras.length === 0) {
+                    showMessage("❌ Камеры не найдены. Проверьте разрешения.", "error");
+                } else if (availableCameras.length === 1) {
+                    elements.cameraSelect.classList.add('hidden');
+                    elements.switchCameraBtn.classList.add('hidden');
+                } else {
+                    elements.cameraSelect.classList.remove('hidden');
+                    elements.switchCameraBtn.classList.remove('hidden');
+                }
+                
+            } catch (err) {
+                console.error("Ошибка получения камер:", err);
+                showMessage("❌ Ошибка доступа к камерам", "error");
+            }
+        }
+        
+        // Заполнить выпадающий список камер
+        function populateCameraSelect() {
+            elements.cameraSelect.innerHTML = '<option value="">Выберите камеру...</option>';
+            
+            availableCameras.forEach((camera, index) => {
+                const option = document.createElement('option');
+                option.value = camera.id;
+                option.textContent = `${camera.label || `Камера ${index + 1}`} (${camera.id.substring(0, 20)}...)`;
+                elements.cameraSelect.appendChild(option);
+            });
+            
+            // Если есть сохраненная камера, выбираем ее
+            const savedCameraId = localStorage.getItem('lastCameraId');
+            if (savedCameraId && availableCameras.some(cam => cam.id === savedCameraId)) {
+                elements.cameraSelect.value = savedCameraId;
+            }
         }
         
         // Настройка обработчиков событий
         function setupEventListeners() {
             elements.startBtn.addEventListener('click', startScanner);
             elements.stopBtn.addEventListener('click', stopScanner);
+            elements.switchCameraBtn.addEventListener('click', switchCamera);
             elements.manualBtn.addEventListener('click', showManualInput);
             elements.checkBtn.addEventListener('click', checkManual);
             elements.cancelBtn.addEventListener('click', hideManualInput);
-            elements.scanAgainBtn.addEventListener('click', scanAgain);
-            elements.closeBtn.addEventListener('click', closeApp);
+            elements.cameraSelect.addEventListener('change', onCameraSelect);
         }
         
-        // Начать сканирование
+        // Старт сканирования с первой доступной камеры
+        async function startWithFirstCamera() {
+            if (availableCameras.length === 0) {
+                showMessage("❌ Нет доступных камер", "error");
+                return;
+            }
+            
+            let cameraId = elements.cameraSelect.value;
+            
+            // Если в селекте ничего не выбрано, берем первую камеру
+            if (!cameraId && availableCameras.length > 0) {
+                cameraId = availableCameras[0].id;
+                elements.cameraSelect.value = cameraId;
+            }
+            
+            await startScannerWithCamera(cameraId);
+        }
+        
+        // Старт сканирования
         async function startScanner() {
             if (isScanning) return;
             
+            const cameraId = elements.cameraSelect.value;
+            
+            if (!cameraId && availableCameras.length > 0) {
+                elements.cameraSelect.value = availableCameras[0].id;
+                await startScannerWithCamera(availableCameras[0].id);
+            } else if (cameraId) {
+                await startScannerWithCamera(cameraId);
+            } else {
+                showMessage("❌ Выберите камеру для начала сканирования", "error");
+            }
+        }
+        
+        // Старт сканирования с конкретной камерой
+        async function startScannerWithCamera(cameraId) {
             try {
-                const cameras = await Html5Qrcode.getCameras();
-                if (cameras.length > 0) {
-                    await html5QrCode.start(
-                        cameras[0].id,
-                        config,
-                        onScanSuccess,
-                        onScanError
-                    );
-                    
-                    isScanning = true;
-                    updateUIForScanning(true);
-                    showMessage("🔍 Сканирование начато... Наведите на QR код", "info");
-                } else {
-                    showMessage("❌ Камера не найдена. Проверьте разрешения.", "error");
-                }
+                showMessage("🔍 Запускаем камеру...", "info");
+                
+                await html5QrCode.start(
+                    cameraId,
+                    config,
+                    onScanSuccess,
+                    onScanError
+                );
+                
+                currentCameraId = cameraId;
+                isScanning = true;
+                
+                // Сохраняем выбор камеры
+                localStorage.setItem('lastCameraId', cameraId);
+                
+                // Обновляем UI
+                updateUIForScanning(true);
+                updateCameraInfo();
+                
+                showMessage("✅ Камера запущена. Наведите на QR код", "success");
+                
             } catch (err) {
-                console.error("Ошибка камеры:", err);
-                showMessage("❌ Ошибка доступа к камере: " + err.message, "error");
+                console.error("Ошибка запуска камеры:", err);
+                showMessage(`❌ Ошибка запуска камеры: ${err.message}`, "error");
+                isScanning = false;
+                updateUIForScanning(false);
             }
         }
         
@@ -264,19 +412,74 @@
             }
         }
         
-        // Обновить UI для сканирования
+        // Переключить камеру
+        async function switchCamera() {
+            if (!availableCameras.length || availableCameras.length < 2) return;
+            
+            // Находим индекс текущей камеры
+            const currentIndex = availableCameras.findIndex(cam => cam.id === currentCameraId);
+            
+            // Выбираем следующую камеру (циклически)
+            const nextIndex = (currentIndex + 1) % availableCameras.length;
+            const nextCameraId = availableCameras[nextIndex].id;
+            
+            // Обновляем селект
+            elements.cameraSelect.value = nextCameraId;
+            
+            // Если сканирование активно, перезапускаем с новой камерой
+            if (isScanning) {
+                await stopScanner();
+                await startScannerWithCamera(nextCameraId);
+            }
+        }
+        
+        // Обработчик выбора камеры из списка
+        async function onCameraSelect() {
+            const selectedCameraId = elements.cameraSelect.value;
+            
+            if (!selectedCameraId) return;
+            
+            // Если сканирование активно, перезапускаем с выбранной камерой
+            if (isScanning) {
+                await stopScanner();
+                await startScannerWithCamera(selectedCameraId);
+            }
+        }
+        
+        // Обновить UI в зависимости от состояния сканирования
         function updateUIForScanning(scanning) {
             if (scanning) {
                 elements.startBtn.classList.add('hidden');
                 elements.stopBtn.classList.remove('hidden');
+                elements.switchCameraBtn.classList.remove('hidden');
                 elements.manualInput.classList.add('hidden');
-                elements.ticketInfo.classList.add('hidden');
+                elements.cameraSelect.disabled = true;
             } else {
                 elements.startBtn.classList.remove('hidden');
                 elements.stopBtn.classList.add('hidden');
+                elements.switchCameraBtn.classList.add('hidden');
+                elements.cameraSelect.disabled = false;
             }
-            elements.resultDiv.className = 'result';
-            elements.resultDiv.textContent = '';
+        }
+        
+        // Обновить информацию о камере
+        function updateCameraInfo() {
+            if (!availableCameras.length) {
+                elements.cameraInfo.classList.add('hidden');
+                return;
+            }
+            
+            const currentCamera = availableCameras.find(cam => cam.id === currentCameraId);
+            
+            if (currentCamera) {
+                elements.cameraInfoContent.innerHTML = `
+                    <div>📷 Камера: ${currentCamera.label || 'Неизвестно'}</div>
+                    <div>🆔 ID: ${currentCamera.id.substring(0, 30)}...</div>
+                    <div>🔧 Статус: ${isScanning ? 'Активна ✅' : 'Неактивна ⏸️'}</div>
+                    <div>🔢 Доступно камер: ${availableCameras.length}</div>
+                `;
+                elements.cameraInfo.classList.remove('hidden');
+            }
         }
         
         // Успешное сканирование
@@ -287,9 +490,9 @@
             const ticketId = extractTicketId(decodedText);
             
             if (ticketId) {
-                checkTicket(ticketId);
+                simulateCheck(ticketId);
             } else {
-                showMessage("❌ Не удалось распознать ID билета. Попробуйте ручной ввод.", "error");
+                showMessage("❌ Не удалось распознать ID билета", "error");
                 showManualInput();
                 elements.ticketIdInput.value = decodedText;
             }
@@ -343,124 +546,61 @@
         function checkManual() {
             const ticketId = elements.ticketIdInput.value.trim();
             if (ticketId) {
-                checkTicket(ticketId);
+                simulateCheck(ticketId);
                 hideManualInput();
             } else {
                 showMessage("❌ Введите ID билета", "error");
             }
         }
         
-        // Проверить билет
-        async function checkTicket(ticketId) {
+        // Имитация проверки
+        function simulateCheck(ticketId) {
             showMessage("🔍 Проверяем билет...", "info");
             
-            // В реальном приложении здесь будет запрос к вашему API
-            // Для демонстрации используем имитацию
-            
-            try {
-                // Имитация запроса к серверу
-                const result = await simulateApiRequest(ticketId);
+            setTimeout(() => {
+                const isTest = ticketId.includes('TEST');
+                const isSuccess = isTest || Math.random() > 0.3;
                 
-                // Показываем результат
-                showResult(ticketId, result);
-                
-                // Отправляем результат в Telegram (но не закрываем приложение)
-                sendToTelegram(result);
-                
-            } catch (error) {
-                showError("Ошибка при проверке билета: " + error.message);
-            }
+                if (isSuccess) {
+                    showSuccess(ticketId);
+                } else {
+                    showError("Билет не найден или уже использован");
+                }
+            }, 1500);
         }
         
-        // Имитация API запроса
-        async function simulateApiRequest(ticketId) {
-            return new Promise((resolve) => {
-                setTimeout(() => {
-                    // Демо-логика: для тестовых билетов - разрешен, для остальных случайно
-                    const isTest = ticketId.includes('TEST') || ticketId.includes('DEMO');
-                    
-                    if (isTest) {
-                        resolve({
-                            success: true,
-                            status: "allowed",
-                            message: "Доступ разрешен",
-                            data: {
-                                ticket_code: ticketId,
-                                username: `user_${Math.floor(Math.random() * 1000)}`,
-                                event: "Тестовое мероприятие",
-                                seat: "Ряд 1, Место 1",
-                                valid_until: "2024-12-31"
-                            }
-                        });
-                    } else {
-                        // 70% шанс что билет валидный
-                        const isValid = Math.random() > 0.3;
-                        
-                        resolve({
-                            success: isValid,
-                            status: isValid ? "allowed" : "denied",
-                            message: isValid ? "Доступ разрешен" : "Доступ заблокирован",
-                            data: isValid ? {
-                                ticket_code: ticketId,
-                                username: `guest_${Math.floor(Math.random() * 1000)}`,
-                                event: "Концерт",
-                                seat: `Ряд ${Math.floor(Math.random() * 10) + 1}, Место ${Math.floor(Math.random() * 20) + 1}`,
-                                valid_until: "2024-12-31"
-                            } : null
-                        });
-                    }
-                }, 1500);
-            });
-        }
-        
-        // Показать результат проверки
-        function showResult(ticketId, result) {
+        // Показать успех
+        function showSuccess(ticketId) {
             const now = new Date();
-            const timeString = now.toLocaleTimeString();
-            const dateString = now.toLocaleDateString();
+            const demoData = {
+                username: `user_${Math.floor(Math.random() * 1000)}`,
+                ticket_code: `TICKET-${Math.random().toString(36).substr(2, 10).toUpperCase()}`,
+                time: now.toLocaleTimeString(),
+                date: now.toLocaleDateString(),
+                event: `Концерт #${Math.floor(Math.random() * 100) + 1}`,
+                seat: `Ряд ${Math.floor(Math.random() * 20) + 1}, Место ${Math.floor(Math.random() * 50) + 1}`
+            };
             
-            // Обновляем timestamp
-            elements.timestamp.textContent = `Проверено: ${dateString} ${timeString}`;
+            const isVerId = ticketId.startsWith('VER-');
             
-            // Показываем статус
-            if (result.success) {
-                elements.statusBadge.textContent = "✅ ДОСТУП РАЗРЕШЕН";
-                elements.statusBadge.className = "status-badge status-allowed";
-                showMessage(result.message, "success");
-            } else {
-                elements.statusBadge.textContent = "❌ ДОСТУП ЗАБЛОКИРОВАН";
-                elements.statusBadge.className = "status-badge status-denied";
-                showMessage(result.message, "error");
-            }
+            showMessage(`✅ Билет проверен успешно!`, "success");
             
-            // Показываем детали билета если есть
-            if (result.data) {
-                const isVerId = ticketId.startsWith('VER-');
-                
-                elements.infoContent.innerHTML = `
-                    <div class="ticket-details">
-                        <div>🎭 Мероприятие: ${result.data.event}</div>
-                        <div>👤 Гость: @${result.data.username}</div>
-                        <div>🎫 Код билета: ${result.data.ticket_code}</div>
-                        <div>🔑 ${isVerId ? 'Verification ID' : 'ID'}: ${ticketId}</div>
-                        <div>💺 Место: ${result.data.seat}</div>
-                        <div>📅 Действителен до: ${result.data.valid_until}</div>
-                    </div>
-                `;
-            } else {
-                elements.infoContent.innerHTML = `
-                    <div class="ticket-details">
-                        <div>🎫 Код билета: ${ticketId}</div>
-                        <div>⚠️ Причина: Билет не найден или уже использован</div>
-                    </div>
-                `;
-            }
+            elements.infoContent.innerHTML = `
+                <div class="ticket-details">
+                    <div>🎭 Мероприятие: ${demoData.event}</div>
+                    <div>👤 Гость: @${demoData.username}</div>
+                    <div>🎫 Код билета: ${demoData.ticket_code}</div>
+                    <div>🔑 ${isVerId ? 'Verification ID' : 'ID'}: ${ticketId}</div>
+                    <div>💺 ${demoData.seat}</div>
+                    <div>📅 Дата проверки: ${demoData.date} ${demoData.time}</div>
+                    <div class="status-active">✅ ДОПУСК РАЗРЕШЁН</div>
+                </div>
+            `;
             
-            // Показываем блок с результатом
             elements.ticketInfo.classList.remove('hidden');
             
-            // Показываем кнопку закрыть только если доступ разрешен
-            elements.closeBtn.classList.toggle('hidden', !result.success);
+            // Отправляем данные в Telegram
+            sendToTelegram(`/check ${ticketId}`);
         }
         
         // Показать ошибку
@@ -473,50 +613,42 @@
         function showMessage(text, type) {
             elements.resultDiv.textContent = text;
             elements.resultDiv.className = 'result';
-            if (type === 'success') {
-                elements.resultDiv.classList.add('success');
-            } else if (type === 'error') {
-                elements.resultDiv.classList.add('error');
-            } else {
-                elements.resultDiv.style.background = '#fff3cd';
-                elements.resultDiv.style.color = '#856404';
-                elements.resultDiv.style.display = 'block';
+            
+            switch(type) {
+                case 'success':
+                    elements.resultDiv.classList.add('success');
+                    break;
+                case 'error':
+                    elements.resultDiv.classList.add('error');
+                    break;
+                case 'info':
+                    elements.resultDiv.classList.add('info');
+                    break;
+                default:
+                    elements.resultDiv.style.background = '#fff3cd';
+                    elements.resultDiv.style.color = '#856404';
+                    elements.resultDiv.style.display = 'block';
             }
         }
         
-        // Сканировать еще раз
-        function scanAgain() {
-            elements.ticketInfo.classList.add('hidden');
-            elements.resultDiv.className = 'result';
-            elements.resultDiv.textContent = '';
-            startScanner();
-        }
-        
-        // Закрыть приложение
-        function closeApp() {
-            tg.close();
-        }
-        
-        // Отправить результат в Telegram
-        function sendToTelegram(result) {
+        // Отправить в Telegram
+        function sendToTelegram(command) {
             try {
-                // Формируем данные для отправки
-                const data = {
+                tg.sendData(JSON.stringify({
+                    command: command,
                     action: 'check_ticket',
-                    status: result.status, // "allowed" или "denied"
-                    message: result.message, // "Доступ разрешен" или "Доступ заблокирован"
-                    success: result.success,
-                    timestamp: new Date().toISOString(),
-                    data: result.data
-                };
+                    timestamp: new Date().toISOString()
+                }));
                 
-                // Отправляем данные в Telegram Web App
-                tg.sendData(JSON.stringify(data));
+                console.log("Отправлено в Telegram:", command);
                 
-                console.log("Отправлено в Telegram:", data);
+                setTimeout(() => {
+                    tg.close();
+                }, 5000);
                 
             } catch (error) {
-                console.error("Ошибка отправки в Telegram:", error);
+                console.error("Ошибка отправки:", error);
+                showMessage("✅ Проверка завершена. Закройте приложение.", "success");
             }
         }
         
