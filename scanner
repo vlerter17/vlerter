@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📱 Сканирование QR билетов</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+            text-align: center;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        #qr-reader {
+            width: 100%;
+            margin: 20px 0;
+            position: relative;
+        }
+        .camera-controls {
+            margin: 15px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+        .camera-select {
+            width: 100%;
+            max-width: 300px;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            background: white;
+        }
+        .camera-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        button.secondary {
+            background: #6c757d;
+        }
+        button.secondary:hover {
+            background: #545b62;
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.success:hover {
+            background: #1e7e34;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        .info {
+            background: #e7f3ff;
+            color: #004085;
+            display: block;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .info-box {
+            margin: 10px 0;
+            padding: 10px;
+            background: #e7f3ff;
+            border-radius: 5px;
+            text-align: left;
+        }
+        #manualInput {
+            margin-top: 20px;
+        }
+        #ticketId {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        #ticketInfo {
+            margin-top: 20px;
+            text-align: left;
+        }
+        .ticket-details {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .status-active {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .status-used {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .icon {
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Сканер QR кодов</h1>
+        <p>Наведите камеру на QR код с билета</p>
+        
+        <div id="qr-reader"></div>
+        
+        <div class="camera-controls">
+            <select id="cameraSelect" class="camera-select hidden">
+                <option value="">Выберите камеру...</option>
+            </select>
+            
+            <div class="camera-actions">
+                <button id="startBtn">
+                    <span class="icon">▶️</span>
+                    <span>Начать сканирование</span>
+                </button>
+                <button id="stopBtn" class="hidden">
+                    <span class="icon">⏹️</span>
+                    <span>Остановить</span>
+                </button>
+                <button id="switchCameraBtn" class="secondary hidden">
+                    <span class="icon">🔄</span>
+                    <span>Сменить камеру</span>
+                </button>
+                <button id="manualBtn" class="secondary">
+                    <span class="icon">📝</span>
+                    <span>Ручной ввод</span>
+                </button>
+            </div>
+        </div>
+        
+        <div id="manualInput" class="hidden">
+            <input type="text" id="ticketId" placeholder="Введите VER-... или TICKET-...">
+            <div class="camera-actions" style="margin-top: 10px;">
+                <button id="checkBtn" class="success">
+                    <span class="icon">🔍</span>
+                    <span>Проверить</span>
+                </button>
+                <button id="cancelBtn" class="danger">
+                    <span class="icon">❌</span>
+                    <span>Отмена</span>
+                </button>
+            </div>
+        </div>
+        
+        <div id="result" class="result"></div>
+        
+        <div id="ticketInfo" class="hidden">
+            <div class="info-box">
+                <strong>Информация о билете:</strong>
+                <div id="infoContent"></div>
+            </div>
+        </div>
+        
+        <div id="cameraInfo" class="info-box hidden">
+            <strong>Информация о камере:</strong>
+            <div id="cameraInfoContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация Telegram Web App
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        
+        let html5QrCode = null;
+        let isScanning = false;
+        let currentCameraId = null;
+        let availableCameras = [];
+        let currentCameraIndex = 0;
+        
+        // Конфиг сканера
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+            showTorchButtonIfSupported: true,
+            rememberLastUsedCamera: true
+        };
+        
+        // Элементы DOM
+        const elements = {
+            startBtn: document.getElementById('startBtn'),
+            stopBtn: document.getElementById('stopBtn'),
+            switchCameraBtn: document.getElementById('switchCameraBtn'),
+            manualBtn: document.getElementById('manualBtn'),
+            manualInput: document.getElementById('manualInput'),
+            checkBtn: document.getElementById('checkBtn'),
+            cancelBtn: document.getElementById('cancelBtn'),
+            cameraSelect: document.getElementById('cameraSelect'),
+            resultDiv: document.getElementById('result'),
+            ticketInfo: document.getElementById('ticketInfo'),
+            infoContent: document.getElementById('infoContent'),
+            ticketIdInput: document.getElementById('ticketId'),
+            cameraInfo: document.getElementById('cameraInfo'),
+            cameraInfoContent: document.getElementById('cameraInfoContent')
+        };
+        
+        // Инициализация
+        async function init() {
+            html5QrCode = new Html5Qrcode("qr-reader");
+            
+            // Получаем список камер
+            await getCameras();
+            
+            // Настройка обработчиков событий
+            setupEventListeners();
+            
+            // Показываем информацию о доступных камерах
+            updateCameraInfo();
+            
+            // Автозапуск камеры при наличии
+            if (availableCameras.length > 0) {
+                setTimeout(() => {
+                    startWithFirstCamera();
+                }, 500);
+            }
+        }
+        
+        // Получить список доступных камер
+        async function getCameras() {
+            try {
+                availableCameras = await Html5Qrcode.getCameras();
+                console.log("Найдено камер:", availableCameras.length);
+                
+                // Заполняем выпадающий список
+                populateCameraSelect();
+                
+                if (availableCameras.length === 0) {
+                    showMessage("❌ Камеры не найдены. Проверьте разрешения.", "error");
+                } else if (availableCameras.length === 1) {
+                    elements.cameraSelect.classList.add('hidden');
+                    elements.switchCameraBtn.classList.add('hidden');
+                } else {
+                    elements.cameraSelect.classList.remove('hidden');
+                    elements.switchCameraBtn.classList.remove('hidden');
+                }
+                
+            } catch (err) {
+                console.error("Ошибка получения камер:", err);
+                showMessage("❌ Ошибка доступа к камерам", "error");
+            }
+        }
+        
+        // Заполнить выпадающий список камер
+        function populateCameraSelect() {
+            elements.cameraSelect.innerHTML = '<option value="">Выберите камеру...</option>';
+            
+            availableCameras.forEach((camera, index) => {
+                const option = document.createElement('option');
+                option.value = camera.id;
+                option.textContent = `${camera.label || `Камера ${index + 1}`} (${camera.id.substring(0, 20)}...)`;
+                elements.cameraSelect.appendChild(option);
+            });
+            
+            // Если есть сохраненная камера, выбираем ее
+            const savedCameraId = localStorage.getItem('lastCameraId');
+            if (savedCameraId && availableCameras.some(cam => cam.id === savedCameraId)) {
+                elements.cameraSelect.value = savedCameraId;
+            }
+        }
+        
+        // Настройка обработчиков событий
+        function setupEventListeners() {
+            elements.startBtn.addEventListener('click', startScanner);
+            elements.stopBtn.addEventListener('click', stopScanner);
+            elements.switchCameraBtn.addEventListener('click', switchCamera);
+            elements.manualBtn.addEventListener('click', showManualInput);
+            elements.checkBtn.addEventListener('click', checkManual);
+            elements.cancelBtn.addEventListener('click', hideManualInput);
+            elements.cameraSelect.addEventListener('change', onCameraSelect);
+        }
+        
+        // Старт сканирования с первой доступной камеры
+        async function startWithFirstCamera() {
+            if (availableCameras.length === 0) {
+                showMessage("❌ Нет доступных камер", "error");
+                return;
+            }
+            
+            let cameraId = elements.cameraSelect.value;
+            
+            // Если в селекте ничего не выбрано, берем первую камеру
+            if (!cameraId && availableCameras.length > 0) {
+                cameraId = availableCameras[0].id;
+                elements.cameraSelect.value = cameraId;
+            }
+            
+            await startScannerWithCamera(cameraId);
+        }
+        
+        // Старт сканирования
+        async function startScanner() {
+            if (isScanning) return;
+            
+            const cameraId = elements.cameraSelect.value;
+            
+            if (!cameraId && availableCameras.length > 0) {
+                elements.cameraSelect.value = availableCameras[0].id;
+                await startScannerWithCamera(availableCameras[0].id);
+            } else if (cameraId) {
+                await startScannerWithCamera(cameraId);
+            } else {
+                showMessage("❌ Выберите камеру для начала сканирования", "error");
+            }
+        }
+        
+        // Старт сканирования с конкретной камерой
+        async function startScannerWithCamera(cameraId) {
+            try {
+                showMessage("🔍 Запускаем камеру...", "info");
+                
+                await html5QrCode.start(
+                    cameraId,
+                    config,
+                    onScanSuccess,
+                    onScanError
+                );
+                
+                currentCameraId = cameraId;
+                isScanning = true;
+                
+                // Сохраняем выбор камеры
+                localStorage.setItem('lastCameraId', cameraId);
+                
+                // Обновляем UI
+                updateUIForScanning(true);
+                updateCameraInfo();
+                
+                showMessage("✅ Камера запущена. Наведите на QR код", "success");
+                
+            } catch (err) {
+                console.error("Ошибка запуска камеры:", err);
+                showMessage(`❌ Ошибка запуска камеры: ${err.message}`, "error");
+                isScanning = false;
+                updateUIForScanning(false);
+            }
+        }
+        
+        // Остановить сканирование
+        async function stopScanner() {
+            if (!isScanning || !html5QrCode) return;
+            
+            try {
+                await html5QrCode.stop();
+                isScanning = false;
+                updateUIForScanning(false);
+                showMessage("⏹️ Сканирование остановлено", "info");
+            } catch (err) {
+                console.error("Ошибка остановки:", err);
+            }
+        }
+        
+        // Переключить камеру
+        async function switchCamera() {
+            if (!availableCameras.length || availableCameras.length < 2) return;
+            
+            // Находим индекс текущей камеры
+            const currentIndex = availableCameras.findIndex(cam => cam.id === currentCameraId);
+            
+            // Выбираем следующую камеру (циклически)
+            const nextIndex = (currentIndex + 1) % availableCameras.length;
+            const nextCameraId = availableCameras[nextIndex].id;
+            
+            // Обновляем селект
+            elements.cameraSelect.value = nextCameraId;
+            
+            // Если сканирование активно, перезапускаем с новой камерой
+            if (isScanning) {
+                await stopScanner();
+                await startScannerWithCamera(nextCameraId);
+            }
+        }
+        
+        // Обработчик выбора камеры из списка
+        async function onCameraSelect() {
+            const selectedCameraId = elements.cameraSelect.value;
+            
+            if (!selectedCameraId) return;
+            
+            // Если сканирование активно, перезапускаем с выбранной камерой
+            if (isScanning) {
+                await stopScanner();
+                await startScannerWithCamera(selectedCameraId);
+            }
+        }
+        
+        // Обновить UI в зависимости от состояния сканирования
+        function updateUIForScanning(scanning) {
+            if (scanning) {
+                elements.startBtn.classList.add('hidden');
+                elements.stopBtn.classList.remove('hidden');
+                elements.switchCameraBtn.classList.remove('hidden');
+                elements.manualInput.classList.add('hidden');
+                elements.cameraSelect.disabled = true;
+            } else {
+                elements.startBtn.classList.remove('hidden');
+                elements.stopBtn.classList.add('hidden');
+                elements.switchCameraBtn.classList.add('hidden');
+                elements.cameraSelect.disabled = false;
+            }
+        }
+        
+        // Обновить информацию о камере
+        function updateCameraInfo() {
+            if (!availableCameras.length) {
+                elements.cameraInfo.classList.add('hidden');
+                return;
+            }
+            
+            const currentCamera = availableCameras.find(cam => cam.id === currentCameraId);
+            
+            if (currentCamera) {
+                elements.cameraInfoContent.innerHTML = `
+                    <div>📷 Камера: ${currentCamera.label || 'Неизвестно'}</div>
+                    <div>🆔 ID: ${currentCamera.id.substring(0, 30)}...</div>
+                    <div>🔧 Статус: ${isScanning ? 'Активна ✅' : 'Неактивна ⏸️'}</div>
+                    <div>🔢 Доступно камер: ${availableCameras.length}</div>
+                `;
+                elements.cameraInfo.classList.remove('hidden');
+            }
+        }
+        
+        // Успешное сканирование
+        function onScanSuccess(decodedText) {
+            console.log("Найден QR:", decodedText);
+            stopScanner();
+            
+            const ticketId = extractTicketId(decodedText);
+            
+            if (ticketId) {
+                simulateCheck(ticketId);
+            } else {
+                showMessage("❌ Не удалось распознать ID билета", "error");
+                showManualInput();
+                elements.ticketIdInput.value = decodedText;
+            }
+        }
+        
+        // Ошибка сканирования
+        function onScanError(error) {
+            // Игнорируем обычные ошибки сканирования
+            console.log("Ошибка сканирования:", error);
+        }
+        
+        // Извлечь ID билета
+        function extractTicketId(text) {
+            const cleanText = text.trim();
+            
+            try {
+                const data = JSON.parse(cleanText);
+                if (data.verification_id) return data.verification_id;
+                if (data.ticket_code) return data.ticket_code;
+            } catch (e) {}
+            
+            const verMatch = cleanText.match(/VER-[A-Z0-9]{8,}/i);
+            if (verMatch) return verMatch[0];
+            
+            const ticketMatch = cleanText.match(/TICKET-[A-Z0-9]{8,}/i);
+            if (ticketMatch) return ticketMatch[0];
+            
+            if (cleanText.length > 8 && (cleanText.includes('VER-') || cleanText.includes('TICKET-'))) {
+                return cleanText;
+            }
+            
+            return null;
+        }
+        
+        // Показать ручной ввод
+        function showManualInput() {
+            stopScanner();
+            elements.manualInput.classList.remove('hidden');
+            elements.resultDiv.className = 'result';
+            elements.resultDiv.textContent = '';
+            elements.ticketIdInput.focus();
+        }
+        
+        // Скрыть ручной ввод
+        function hideManualInput() {
+            elements.manualInput.classList.add('hidden');
+            elements.ticketIdInput.value = '';
+        }
+        
+        // Проверить вручную
+        function checkManual() {
+            const ticketId = elements.ticketIdInput.value.trim();
+            if (ticketId) {
+                simulateCheck(ticketId);
+                hideManualInput();
+            } else {
+                showMessage("❌ Введите ID билета", "error");
+            }
+        }
+        
+        // Имитация проверки
+        function simulateCheck(ticketId) {
+            showMessage("🔍 Проверяем билет...", "info");
+            
+            setTimeout(() => {
+                const isTest = ticketId.includes('TEST');
+                const isSuccess = isTest || Math.random() > 0.3;
+                
+                if (isSuccess) {
+                    showSuccess(ticketId);
+                } else {
+                    showError("Билет не найден или уже использован");
+                }
+            }, 1500);
+        }
+        
+        // Показать успех
+        function showSuccess(ticketId) {
+            const now = new Date();
+            const demoData = {
+                username: `user_${Math.floor(Math.random() * 1000)}`,
+                ticket_code: `TICKET-${Math.random().toString(36).substr(2, 10).toUpperCase()}`,
+                time: now.toLocaleTimeString(),
+                date: now.toLocaleDateString(),
+                event: `Концерт #${Math.floor(Math.random() * 100) + 1}`,
+                seat: `Ряд ${Math.floor(Math.random() * 20) + 1}, Место ${Math.floor(Math.random() * 50) + 1}`
+            };
+            
+            const isVerId = ticketId.startsWith('VER-');
+            
+            showMessage(`✅ Билет проверен успешно!`, "success");
+            
+            elements.infoContent.innerHTML = `
+                <div class="ticket-details">
+                    <div>🎭 Мероприятие: ${demoData.event}</div>
+                    <div>👤 Гость: @${demoData.username}</div>
+                    <div>🎫 Код билета: ${demoData.ticket_code}</div>
+                    <div>🔑 ${isVerId ? 'Verification ID' : 'ID'}: ${ticketId}</div>
+                    <div>💺 ${demoData.seat}</div>
+                    <div>📅 Дата проверки: ${demoData.date} ${demoData.time}</div>
+                    <div class="status-active">✅ ДОПУСК РАЗРЕШЁН</div>
+                </div>
+            `;
+            
+            elements.ticketInfo.classList.remove('hidden');
+            
+            // Отправляем данные в Telegram
+            sendToTelegram(`/check ${ticketId}`);
+        }
+        
+        // Показать ошибку
+        function showError(message) {
+            showMessage(`❌ ${message}`, "error");
+            elements.ticketInfo.classList.add('hidden');
+        }
+        
+        // Показать сообщение
+        function showMessage(text, type) {
+            elements.resultDiv.textContent = text;
+            elements.resultDiv.className = 'result';
+            
+            switch(type) {
+                case 'success':
+                    elements.resultDiv.classList.add('success');
+                    break;
+                case 'error':
+                    elements.resultDiv.classList.add('error');
+                    break;
+                case 'info':
+                    elements.resultDiv.classList.add('info');
+                    break;
+                default:
+                    elements.resultDiv.style.background = '#fff3cd';
+                    elements.resultDiv.style.color = '#856404';
+                    elements.resultDiv.style.display = 'block';
+            }
+        }
+        
+        // Отправить в Telegram
+        function sendToTelegram(command) {
+            try {
+                tg.sendData(JSON.stringify({
+                    command: command,
+                    action: 'check_ticket',
+                    timestamp: new Date().toISOString()
+                }));
+                
+                console.log("Отправлено в Telegram:", command);
+                
+                setTimeout(() => {
+                    tg.close();
+                }, 5000);
+                
+            } catch (error) {
+                console.error("Ошибка отправки:", error);
+                showMessage("✅ Проверка завершена. Закройте приложение.", "success");
+            }
+        }
+        
+        // Запуск при загрузке
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
